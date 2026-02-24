@@ -13,6 +13,7 @@ interface Song {
 const DEFAULT_ARTIST_NAME = process.env.NEXT_PUBLIC_ARTIST_NAME;
 
 function slugToName(slug: string) {
+  try { slug = decodeURIComponent(slug); } catch { /* leave as-is */ }
   return slug
     .replace(/[-_]/g, " ")
     .replace(/\b\w/g, (c) => c.toUpperCase());

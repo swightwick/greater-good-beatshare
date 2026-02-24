@@ -5,6 +5,7 @@ import UploadModal from "./components/UploadModal";
 import LogoCanvas from "./components/LogoCanvas";
 
 function slugToName(slug: string) {
+  try { slug = decodeURIComponent(slug); } catch { /* leave as-is */ }
   return slug.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 

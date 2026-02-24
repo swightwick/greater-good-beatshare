@@ -1,6 +1,16 @@
 "use client";
 
+import { upload } from "@vercel/blob/client";
 import { useRef, useState, DragEvent, ChangeEvent } from "react";
+
+function slugify(name: string) {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]/g, "")
+    .replace(/^-+|-+$/g, "");
+}
 
 interface UploadModalProps {
   onClose: () => void;
@@ -41,18 +51,22 @@ export default function UploadModal({ onClose }: UploadModalProps) {
     if (!name.trim()) { setError("Enter a name first."); return; }
     if (!files.length) { setError("Add at least one MP3."); return; }
 
+    const slug = slugify(name.trim());
+    if (!slug) { setError("Invalid name."); return; }
+
     setUploading(true);
     try {
-      const fd = new FormData();
-      fd.append("name", name.trim());
-      files.forEach((f) => fd.append("files", f));
-
-      const res = await fetch("/api/upload", { method: "POST", body: fd });
-      const data = await res.json();
-      if (!res.ok) { setError(data.error ?? "Upload failed."); return; }
-
-      const url = `${window.location.origin}/${data.slug}`;
-      setResult({ slug: data.slug, url });
+      for (const file of files) {
+        const safeName = file.name.replace(/[^a-zA-Z0-9._\- ]/g, "_");
+        await upload(`songs/${slug}/${safeName}`, file, {
+          access: "public",
+          handleUploadUrl: "/api/upload",
+        });
+      }
+      const url = `${window.location.origin}/${slug}`;
+      setResult({ slug, url });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed.");
     } finally {
       setUploading(false);
     }
@@ -143,7 +157,7 @@ export default function UploadModal({ onClose }: UploadModalProps) {
                 <p className="mt-1.5 text-xs text-neutral-600">
                   Page will be at{" "}
                   <span className="text-neutral-400">
-                    /{name.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "")}
+                    /{slugify(name.trim())}
                   </span>
                 </p>
               )}

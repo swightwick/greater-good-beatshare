@@ -68,7 +68,7 @@ export default function WaveformPlayer({
     wavesurferRef.current = ws;
 
     return () => {
-      ws.destroy();
+      try { ws.destroy(); } catch { /* abort from in-flight fetch on unmount — safe to ignore */ }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [song.url]);
@@ -91,61 +91,71 @@ export default function WaveformPlayer({
     return `${m}:${sec.toString().padStart(2, "0")}`;
   };
 
+  const downloadBtn = (extraClass: string) => (
+    <a
+      href={song.url}
+      download
+      className={`${extraClass} items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-all border border-neutral-700 text-neutral-400 hover:border-neutral-500 hover:text-white`}
+    >
+      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+      </svg>
+      Download
+    </a>
+  );
+
   return (
     <div className="group flex flex-col gap-3 rounded-2xl bg-neutral-900 border border-neutral-800 p-5 transition-all hover:border-neutral-700">
       {/* Song header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <span className="text-base font-semibold text-white truncate capitalize">
-            {song.name}
-          </span>
-          {song.bpm != null && (
-            <span className="flex-shrink-0 text-xs font-medium text-orange-500 bg-orange-500/10 border border-orange-500/20 rounded-full px-2 py-0.5 tabular-nums">
-              {Math.round(song.bpm)} BPM
+      <div className="flex flex-col gap-2">
+        {/* Row 1: name + time (+ download on desktop) */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span className="text-base font-semibold text-white truncate capitalize">
+              {song.name}
             </span>
-          )}
-        </div>
-        <div className="flex items-center gap-3 flex-shrink-0 ml-3">
-          {/* Time */}
-          <span className="text-xs text-neutral-500 tabular-nums">
-            {fmt(currentTime)} / {fmt(duration)}
-          </span>
-          {/* Download button */}
-          <a
-            href={song.url}
-            download
-            className="flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-all border border-neutral-700 text-neutral-400 hover:border-neutral-500 hover:text-white"
-          >
-            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-            </svg>
-            Download
-          </a>
-          {/* Like button */}
-          <button
-            onClick={onToggleLike}
-            className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-all border ${
-              isLiked
-                ? "bg-orange-500 border-orange-500 text-white"
-                : "border-neutral-700 text-neutral-400 hover:border-orange-500 hover:text-orange-500"
-            }`}
-          >
-            <svg
-              className="w-3.5 h-3.5"
-              viewBox="0 0 24 24"
-              fill={isLiked ? "currentColor" : "none"}
-              stroke="currentColor"
-              strokeWidth={2}
+            {song.bpm != null && (
+              <span className="flex-shrink-0 text-xs font-medium text-orange-500 bg-orange-500/10 border border-orange-500/20 rounded-full px-2 py-0.5 tabular-nums">
+                {Math.round(song.bpm)} BPM
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-3 flex-shrink-0 ml-3">
+            {/* Time */}
+            <span className="text-xs text-neutral-500 tabular-nums">
+              {fmt(currentTime)} / {fmt(duration)}
+            </span>
+            {/* Download — desktop only */}
+            {downloadBtn("hidden sm:flex")}
+            {/* Like button */}
+            <button
+              onClick={onToggleLike}
+              className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-all border ${
+                isLiked
+                  ? "bg-orange-500 border-orange-500 text-white"
+                  : "border-neutral-700 text-neutral-400 hover:border-orange-500 hover:text-orange-500"
+              }`}
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z"
-              />
-            </svg>
-            {isLiked ? "Liked" : "Like"}
-          </button>
+              <svg
+                className="w-3.5 h-3.5"
+                viewBox="0 0 24 24"
+                fill={isLiked ? "currentColor" : "none"}
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z"
+                />
+              </svg>
+              {isLiked ? "Liked" : "Like"}
+            </button>
+          </div>
         </div>
+
+        {/* Row 2: download — mobile only */}
+        {downloadBtn("flex sm:hidden")}
       </div>
 
       {/* Waveform + play button row */}
@@ -171,8 +181,18 @@ export default function WaveformPlayer({
           )}
         </button>
 
-        {/* Waveform */}
-        <div ref={containerRef} className="flex-1 min-w-0" />
+        {/* Waveform with loading spinner */}
+        <div className="relative flex-1 min-w-0 h-16">
+          <div ref={containerRef} className="w-full" />
+          {!isReady && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <svg className="w-5 h-5 animate-spin text-neutral-600" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
