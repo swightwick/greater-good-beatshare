@@ -7,14 +7,14 @@ const links = [
 
 export default function SocialLinks({ className = "" }: { className?: string }) {
   return (
-    <div className={`flex flex-row justify-center gap-6 ${className}`}>
+    <div className={`flex flex-row justify-center gap-4 md:gap-6 ${className}`}>
       {links.map(({ label, href }) => (
         <a
           key={label}
           href={href}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-xs font-medium uppercase tracking-[3px] text-gold hover:text-gold-hover transition-colors"
+          className="text-[10px] md:text-xs font-medium uppercase tracking-[3px] text-gold hover:text-gold-hover transition-colors"
         >
           {label}
         </a>

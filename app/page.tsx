@@ -93,7 +93,7 @@ export default function Home() {
         <SocialLinks className="mb-8" />
 
         {/* Admin section */}
-        <div className="border-t border-white/10 pt-8">
+        <div className=" pt-0">
           {!unlocked ? (
             <form onSubmit={handleUnlock} className="flex items-center gap-2">
               <input
