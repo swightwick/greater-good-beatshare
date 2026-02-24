@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
-  const { password } = await req.json();
-  const correct = process.env.ADMIN_PASSWORD;
+  const { password, type } = await req.json();
+  const correct = type === "viewer"
+    ? process.env.VIEWER_PASSWORD
+    : process.env.ADMIN_PASSWORD;
 
   if (!correct) {
-    return NextResponse.json({ error: "No admin password set" }, { status: 500 });
+    return NextResponse.json({ error: "Password not configured" }, { status: 500 });
   }
 
   if (password !== correct) {

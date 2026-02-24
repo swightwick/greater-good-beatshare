@@ -30,7 +30,7 @@ export async function GET() {
       return {
         id: filename,
         name: filename.replace(/\.mp3$/i, "").replace(/[-_]/g, " "),
-        url: `/songs/${filename}`,
+        url: `/api/audio/${encodeURIComponent(filename)}`,
         bpm,
       };
     })

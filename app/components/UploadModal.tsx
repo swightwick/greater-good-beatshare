@@ -89,8 +89,8 @@ export default function UploadModal({ onClose }: UploadModalProps) {
         {result ? (
           /* ── Success state ── */
           <div className="text-center">
-            <div className="w-12 h-12 rounded-full bg-orange-500/10 border border-orange-500/30 flex items-center justify-center mx-auto mb-4">
-              <svg className="w-5 h-5 text-orange-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+            <div className="w-12 h-12 rounded-full bg-[#826921]/10 border border-[#826921]/30 flex items-center justify-center mx-auto mb-4">
+              <svg className="w-5 h-5 text-[#826921]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
               </svg>
             </div>
@@ -105,7 +105,7 @@ export default function UploadModal({ onClose }: UploadModalProps) {
               </span>
               <button
                 onClick={copyLink}
-                className="flex-shrink-0 text-xs font-medium text-orange-500 hover:text-orange-400 transition-colors"
+                className="flex-shrink-0 text-xs font-medium text-[#826921] hover:text-[#9a7d28] transition-colors"
               >
                 {copied ? "Copied!" : "Copy"}
               </button>
@@ -120,7 +120,7 @@ export default function UploadModal({ onClose }: UploadModalProps) {
               </button>
               <a
                 href={`/${result.slug}`}
-                className="flex-1 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-400 text-sm font-semibold text-white text-center transition-colors"
+                className="flex-1 py-2.5 rounded-xl bg-[#826921] hover:bg-[#9a7d28] text-sm font-semibold text-white text-center transition-colors"
               >
                 Open page
               </a>
@@ -151,7 +151,7 @@ export default function UploadModal({ onClose }: UploadModalProps) {
                 value={name}
                 onChange={(e: ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
                 placeholder="e.g. Jay, Mike, Coldplay"
-                className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-3 text-sm text-white placeholder:text-neutral-600 focus:outline-none focus:border-orange-500 transition-colors"
+                className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-3 text-sm text-white placeholder:text-neutral-600 focus:outline-none focus:border-[#826921] transition-colors"
               />
               {name.trim() && (
                 <p className="mt-1.5 text-xs text-neutral-600">
@@ -171,7 +171,7 @@ export default function UploadModal({ onClose }: UploadModalProps) {
               onClick={() => fileInputRef.current?.click()}
               className={`relative border-2 border-dashed rounded-xl px-6 py-8 text-center cursor-pointer transition-all mb-4 ${
                 dragging
-                  ? "border-orange-500 bg-orange-500/5"
+                  ? "border-[#826921] bg-[#826921]/5"
                   : "border-neutral-800 hover:border-neutral-700"
               }`}
             >
@@ -220,7 +220,7 @@ export default function UploadModal({ onClose }: UploadModalProps) {
             <button
               onClick={onSubmit}
               disabled={uploading}
-              className="w-full py-3 rounded-xl bg-orange-500 hover:bg-orange-400 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-semibold text-white transition-colors"
+              className="w-full py-3 rounded-xl bg-[#826921] hover:bg-[#9a7d28] disabled:opacity-50 disabled:cursor-not-allowed text-sm font-semibold text-white transition-colors"
             >
               {uploading ? "Uploading…" : `Create page${files.length ? ` · ${files.length} track${files.length > 1 ? "s" : ""}` : ""}`}
             </button>

@@ -8,12 +8,14 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-hanken-grotesk);
   --font-mono: var(--font-geist-mono);
+  --color-gold: #AB8A2B;
+  --color-gold-hover: #665219;
 }
 
 body {
-  background: var(--background);
+  background: #171717;
   color: var(--foreground);
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  font-family: var(--font-hanken-grotesk), Arial, Helvetica, sans-serif;
 }

@@ -38,7 +38,7 @@ export async function GET(
         songs.push({
           id: filename,
           name: filename.replace(/\.mp3$/i, "").replace(/[-_]/g, " "),
-          url: `/songs/${matchFolder}/${filename}`,
+          url: `/api/audio/${encodeURIComponent(matchFolder)}/${encodeURIComponent(filename)}`,
           bpm,
         });
       }

@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useRef, useEffect } from "react";
+import { Suspense, useRef, useEffect, useMemo, memo } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useGLTF, Environment } from "@react-three/drei";
 import * as THREE from "three";
@@ -12,22 +12,29 @@ function SpinningLogo() {
 
   useFrame((_, delta) => {
     if (groupRef.current) {
-      groupRef.current.rotation.y += delta * 0.5;
+      groupRef.current.rotation.y += delta * 0.6;
     }
   });
 
-  gltf.scene.traverse((child) => {
-    if ((child as THREE.Mesh).isMesh) {
-      (child as THREE.Mesh).material = new THREE.MeshStandardMaterial({
+  const material = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
         color: "white",
         metalness: 0.9,
         roughness: 0.1,
         envMapIntensity: 2,
-      });
-    }
-  });
+      }),
+    []
+  );
 
-  gltf.scene.scale.set(10, 10, 10);
+  useEffect(() => {
+    gltf.scene.scale.set(10, 10, 10);
+    gltf.scene.traverse((child) => {
+      if ((child as THREE.Mesh).isMesh) {
+        (child as THREE.Mesh).material = material;
+      }
+    });
+  }, [gltf.scene, material]);
 
   useEffect(() => {
     gltf.scene.updateWorldMatrix(true, true);
@@ -59,9 +66,18 @@ function SpinningLogo() {
 
 useGLTF.preload("/gg/gg.glb");
 
-export default function LogoCanvas() {
+const LogoCanvas = memo(function LogoCanvas({
+  height = 350,
+  className,
+}: {
+  height?: number;
+  className?: string;
+}) {
   return (
-    <div style={{ width: "100%", height: 350 }}>
+    <div
+      style={className ? {} : { width: "100%", height }}
+      className={className ?? "w-full"}
+    >
       <Canvas
         gl={{ alpha: true }}
         camera={{ fov: 20, near: 0.1, far: 400, position: [0, 0, 8] }}
@@ -76,4 +92,6 @@ export default function LogoCanvas() {
       </Canvas>
     </div>
   );
-}
+});
+
+export default LogoCanvas;

@@ -27,20 +27,40 @@ export default function WaveformPlayer({
   isLiked,
   onToggleLike,
 }: WaveformPlayerProps) {
+  const outerRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const wavesurferRef = useRef<WaveSurfer | null>(null);
+  const [hasEntered, setHasEntered] = useState(false);
   const [isReady, setIsReady] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
 
+  // Trigger load only when the card scrolls into view (or is near it)
   useEffect(() => {
-    if (!containerRef.current) return;
+    const el = outerRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setHasEntered(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "200px" } // start loading 200px before entering viewport
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  // Create and load WaveSurfer only after the card enters the viewport
+  useEffect(() => {
+    if (!hasEntered || !containerRef.current) return;
 
     const ws = WaveSurfer.create({
       container: containerRef.current,
       waveColor: "#4B5563",
-      progressColor: "#F97316",
-      cursorColor: "#F97316",
+      progressColor: "#826921",
+      cursorColor: "#826921",
       barWidth: 2,
       barGap: 1,
       barRadius: 2,
@@ -71,7 +91,7 @@ export default function WaveformPlayer({
       try { ws.destroy(); } catch { /* abort from in-flight fetch on unmount — safe to ignore */ }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [song.url]);
+  }, [hasEntered, song.url]);
 
   useEffect(() => {
     const ws = wavesurferRef.current;
@@ -105,7 +125,7 @@ export default function WaveformPlayer({
   );
 
   return (
-    <div className="group flex flex-col gap-3 rounded-2xl bg-neutral-900 border border-neutral-800 p-5 transition-all hover:border-neutral-700">
+    <div ref={outerRef} className="group flex flex-col gap-3 shadow-xl rounded-2xl bg-neutral-800 border border-neutral-700 p-5 transition-all hover:border-neutral-700">
       {/* Song header */}
       <div className="flex flex-col gap-2">
         {/* Row 1: name + time (+ download on desktop) */}
@@ -115,7 +135,7 @@ export default function WaveformPlayer({
               {song.name}
             </span>
             {song.bpm != null && (
-              <span className="flex-shrink-0 text-xs font-medium text-orange-500 bg-orange-500/10 border border-orange-500/20 rounded-full px-2 py-0.5 tabular-nums">
+              <span className="flex-shrink-0 text-xs font-medium text-gold bg-gold/10 border border-gold/20 rounded-full px-2 py-0.5 tabular-nums">
                 {Math.round(song.bpm)} BPM
               </span>
             )}
@@ -127,13 +147,13 @@ export default function WaveformPlayer({
             </span>
             {/* Download — desktop only */}
             {downloadBtn("hidden sm:flex")}
-            {/* Like button */}
+            {/* Like button — desktop only */}
             <button
               onClick={onToggleLike}
-              className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-all border ${
+              className={`hidden sm:flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-all border ${
                 isLiked
-                  ? "bg-orange-500 border-orange-500 text-white"
-                  : "border-neutral-700 text-neutral-400 hover:border-orange-500 hover:text-orange-500"
+                  ? "bg-gold border-gold text-white"
+                  : "border-neutral-700 text-neutral-400 hover:border-gold hover:text-gold"
               }`}
             >
               <svg
@@ -153,9 +173,6 @@ export default function WaveformPlayer({
             </button>
           </div>
         </div>
-
-        {/* Row 2: download — mobile only */}
-        {downloadBtn("flex sm:hidden")}
       </div>
 
       {/* Waveform + play button row */}
@@ -166,7 +183,7 @@ export default function WaveformPlayer({
           disabled={!isReady}
           className={`flex-shrink-0 w-11 h-11 rounded-full flex items-center justify-center transition-all ${
             isReady
-              ? "bg-orange-500 hover:bg-orange-400 text-white cursor-pointer"
+              ? "bg-gold hover:bg-gold-hover text-white cursor-pointer"
               : "bg-neutral-700 text-neutral-500 cursor-not-allowed"
           }`}
         >
@@ -193,6 +210,34 @@ export default function WaveformPlayer({
             </div>
           )}
         </div>
+      </div>
+
+      {/* Like + Download — mobile only, full-width row at bottom */}
+      <div className="flex sm:hidden gap-2">
+        <button
+          onClick={onToggleLike}
+          className={`flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium transition-all border ${
+            isLiked
+              ? "bg-gold border-gold text-white"
+              : "border-neutral-700 text-neutral-400 hover:border-gold hover:text-gold"
+          }`}
+        >
+          <svg
+            className="w-3.5 h-3.5"
+            viewBox="0 0 24 24"
+            fill={isLiked ? "currentColor" : "none"}
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z"
+            />
+          </svg>
+          {isLiked ? "Liked" : "Like"}
+        </button>
+        {downloadBtn("flex flex-1 justify-center")}
       </div>
     </div>
   );
