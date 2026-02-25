@@ -17,6 +17,7 @@ export default function Home() {
   const [showUpload, setShowUpload] = useState(false);
   const [artists, setArtists] = useState<string[]>([]);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // Auth state
   const [unlocked, setUnlocked] = useState(false);
@@ -68,9 +69,19 @@ export default function Home() {
   const handleDelete = async (slug: string) => {
     if (!confirm(`Delete page "${slugToName(slug)}"? This cannot be undone.`)) return;
     setDeleting(slug);
-    await fetch(`/api/artists/${slug}`, { method: "DELETE" });
-    setDeleting(null);
-    fetchArtists();
+    setDeleteError(null);
+    try {
+      const res = await fetch(`/api/artists/${slug}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setDeleteError(data.error ?? `Delete failed (${res.status})`);
+      }
+    } catch {
+      setDeleteError("Network error");
+    } finally {
+      setDeleting(null);
+      fetchArtists();
+    }
   };
 
   return (
@@ -173,6 +184,9 @@ export default function Home() {
                     </li>
                   ))}
                 </ul>
+              )}
+              {deleteError && (
+                <p className="mt-3 text-xs text-red-400">{deleteError}</p>
               )}
             </>
           )}

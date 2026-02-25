@@ -46,8 +46,12 @@ export async function DELETE(
       await del(blobs.map((b) => b.url));
       deleted = true;
     }
-  } catch {
-    // Blob not configured — fine for local dev
+  } catch (err) {
+    // Blob not configured locally — ignore. But surface real errors.
+    const msg = err instanceof Error ? err.message : String(err);
+    if (!msg.includes("BLOB_READ_WRITE_TOKEN")) {
+      return NextResponse.json({ error: `Blob delete failed: ${msg}` }, { status: 500 });
+    }
   }
 
   if (!deleted) {

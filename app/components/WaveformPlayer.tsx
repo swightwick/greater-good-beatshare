@@ -32,6 +32,7 @@ export default function WaveformPlayer({
   const wavesurferRef = useRef<WaveSurfer | null>(null);
   const [hasEntered, setHasEntered] = useState(false);
   const [isReady, setIsReady] = useState(false);
+  const [loadProgress, setLoadProgress] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
 
@@ -70,6 +71,10 @@ export default function WaveformPlayer({
     });
 
     ws.load(song.url);
+
+    ws.on("loading", (percent: number) => {
+      setLoadProgress(percent);
+    });
 
     ws.on("ready", () => {
       setIsReady(true);
@@ -202,11 +207,14 @@ export default function WaveformPlayer({
         <div className="relative flex-1 min-w-0 h-16">
           <div ref={containerRef} className="w-full" />
           {!isReady && (
-            <div className="absolute inset-0 flex items-center justify-center">
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
               <svg className="w-5 h-5 animate-spin text-neutral-600" viewBox="0 0 24 24" fill="none">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
               </svg>
+              {loadProgress > 0 && (
+                <span className="text-xs text-neutral-500 tabular-nums">{loadProgress}%</span>
+              )}
             </div>
           )}
         </div>

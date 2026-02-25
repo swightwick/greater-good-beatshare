@@ -29,7 +29,7 @@ export default function BeatShareApp({ slug }: { slug?: string }) {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [downloading, setDownloading] = useState(false);
+  const [zipProgress, setZipProgress] = useState<number | null>(null);
 
   // Password gate
   const [unlocked, setUnlocked] = useState(false);
@@ -105,20 +105,25 @@ export default function BeatShareApp({ slug }: { slug?: string }) {
   };
 
   const handleDownloadAll = async (songsToZip: Song[], filename: string) => {
-    setDownloading(true);
+    setZipProgress(0);
     try {
       const JSZip = (await import("jszip")).default;
       const zip = new JSZip();
 
+      let fetched = 0;
       await Promise.all(
         songsToZip.map(async (song) => {
           const res = await fetch(song.url);
           const buf = await res.arrayBuffer();
           zip.file(song.id, buf);
+          fetched++;
+          setZipProgress(Math.round((fetched / songsToZip.length) * 50));
         })
       );
 
-      const blob = await zip.generateAsync({ type: "blob" });
+      const blob = await zip.generateAsync({ type: "blob" }, (meta) => {
+        setZipProgress(50 + Math.round(meta.percent / 2));
+      });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -126,7 +131,7 @@ export default function BeatShareApp({ slug }: { slug?: string }) {
       a.click();
       URL.revokeObjectURL(url);
     } finally {
-      setDownloading(false);
+      setZipProgress(null);
     }
   };
 
@@ -181,15 +186,15 @@ export default function BeatShareApp({ slug }: { slug?: string }) {
             {songs.length > 0 && (
               <button
                 onClick={() => handleDownloadAll(songs, "all-beats.zip")}
-                disabled={downloading}
+                disabled={zipProgress !== null}
                 className="flex items-center gap-1.5 rounded-full px-5 py-2 text-xs font-medium border border-neutral-800 text-neutral-400 hover:border-neutral-500 hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {downloading ? (
+                {zipProgress !== null ? (
                   <>
                     <svg className="w-3 h-3 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
                     </svg>
-                    Zipping…
+                    {zipProgress}%
                   </>
                 ) : (
                   <>
@@ -297,15 +302,15 @@ export default function BeatShareApp({ slug }: { slug?: string }) {
                 </button>
                 <button
                   onClick={() => handleDownloadAll(likedSongs, "liked-beats.zip")}
-                  disabled={downloading}
+                  disabled={zipProgress !== null}
                   className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium border border-neutral-700 text-neutral-400 hover:border-neutral-500 hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {downloading ? (
+                  {zipProgress !== null ? (
                     <>
                       <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
                       </svg>
-                      Zipping…
+                      {zipProgress}%
                     </>
                   ) : (
                     <>

@@ -1,6 +1,5 @@
 "use client";
 
-import { upload } from "@vercel/blob/client";
 import { useRef, useState, DragEvent, ChangeEvent } from "react";
 
 function slugify(name: string) {
@@ -21,6 +20,7 @@ export default function UploadModal({ onClose }: UploadModalProps) {
   const [files, setFiles] = useState<File[]>([]);
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [fileProgress, setFileProgress] = useState<Record<string, number>>({});
   const [result, setResult] = useState<{ slug: string; url: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -46,6 +46,40 @@ export default function UploadModal({ onClose }: UploadModalProps) {
     addFiles(e.dataTransfer.files);
   };
 
+  const uploadFile = (file: File, pathname: string): Promise<void> =>
+    new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+
+      xhr.upload.addEventListener("progress", (e) => {
+        if (e.lengthComputable) {
+          // Cap at 95 until server confirms blob is stored
+          const pct = Math.min(95, Math.round((e.loaded / e.total) * 95));
+          setFileProgress((prev) => ({ ...prev, [file.name]: pct }));
+        }
+      });
+
+      xhr.addEventListener("load", () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          setFileProgress((prev) => ({ ...prev, [file.name]: 100 }));
+          resolve();
+        } else {
+          try {
+            const msg = JSON.parse(xhr.responseText)?.error ?? "Upload failed";
+            reject(new Error(msg));
+          } catch {
+            reject(new Error(`Upload failed (${xhr.status})`));
+          }
+        }
+      });
+
+      xhr.addEventListener("error", () => reject(new Error("Network error")));
+      xhr.addEventListener("abort", () => reject(new Error("Upload cancelled")));
+
+      xhr.open("PUT", `/api/upload?pathname=${encodeURIComponent(pathname)}`);
+      xhr.setRequestHeader("Content-Type", "audio/mpeg");
+      xhr.send(file);
+    });
+
   const onSubmit = async () => {
     setError(null);
     if (!name.trim()) { setError("Enter a name first."); return; }
@@ -55,16 +89,14 @@ export default function UploadModal({ onClose }: UploadModalProps) {
     if (!slug) { setError("Invalid name."); return; }
 
     setUploading(true);
+    setFileProgress(Object.fromEntries(files.map((f) => [f.name, 0])));
+
     try {
       for (const file of files) {
         const safeName = file.name.replace(/[^a-zA-Z0-9._\- ]/g, "_");
-        await upload(`songs/${slug}/${safeName}`, file, {
-          access: "public",
-          handleUploadUrl: "/api/upload",
-        });
+        await uploadFile(file, `songs/${slug}/${safeName}`);
       }
-      const url = `${window.location.origin}/${slug}`;
-      setResult({ slug, url });
+      setResult({ slug, url: `${window.location.origin}/${slug}` });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed.");
     } finally {
@@ -193,23 +225,54 @@ export default function UploadModal({ onClose }: UploadModalProps) {
 
             {/* File list */}
             {files.length > 0 && (
-              <ul className="flex flex-col gap-1.5 mb-4 max-h-36 overflow-y-auto">
-                {files.map((f) => (
-                  <li
-                    key={f.name}
-                    className="flex items-center justify-between bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs"
-                  >
-                    <span className="text-neutral-300 truncate mr-3">{f.name}</span>
-                    <button
-                      onClick={() => removeFile(f.name)}
-                      className="text-neutral-600 hover:text-red-400 transition-colors flex-shrink-0"
+              <ul className="flex flex-col gap-1.5 mb-4 max-h-48 overflow-y-auto">
+                {files.map((f) => {
+                  const pct = fileProgress[f.name] ?? 0;
+                  const done = uploading && pct >= 100;
+                  return (
+                    <li
+                      key={f.name}
+                      className="flex flex-col bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs overflow-hidden"
                     >
-                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </li>
-                ))}
+                      <div className="flex items-center gap-2">
+                        <span className="text-neutral-300 truncate flex-1 min-w-0">{f.name}</span>
+                        {uploading ? (
+                          done ? (
+                            /* Checkmark */
+                            <svg className="w-3.5 h-3.5 text-[#826921] flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                            </svg>
+                          ) : (
+                            /* Percentage */
+                            <span className="text-neutral-500 tabular-nums flex-shrink-0 min-w-[2rem] text-right">
+                              {pct}%
+                            </span>
+                          )
+                        ) : (
+                          /* Remove button */
+                          <button
+                            onClick={() => removeFile(f.name)}
+                            className="text-neutral-600 hover:text-red-400 transition-colors flex-shrink-0"
+                          >
+                            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Progress bar */}
+                      {uploading && !done && (
+                        <div className="mt-1.5 h-0.5 bg-neutral-800 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-[#826921] rounded-full transition-all duration-200 ease-out"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             )}
 

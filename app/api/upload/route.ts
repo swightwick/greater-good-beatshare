@@ -1,20 +1,8 @@
-import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
+import { put } from "@vercel/blob";
 import { NextResponse } from "next/server";
 
-// Handle CORS preflight — Vercel Blob's client calls this route cross-origin
-// to obtain an upload token, so the OPTIONS response must be valid.
-export function OPTIONS() {
-  return new Response(null, {
-    status: 204,
-    headers: {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization",
-    },
-  });
-}
+export const runtime = "nodejs";
 
-// Validates blob path is songs/{slug}/{filename}.mp3
 function isValidBlobPath(pathname: string): boolean {
   const parts = pathname.split("/");
   return (
@@ -25,28 +13,25 @@ function isValidBlobPath(pathname: string): boolean {
   );
 }
 
-export async function POST(request: Request) {
-  const body = (await request.json()) as HandleUploadBody;
+export async function PUT(request: Request) {
+  const pathname = new URL(request.url).searchParams.get("pathname") ?? "";
+
+  if (!isValidBlobPath(pathname)) {
+    return NextResponse.json({ error: "Invalid upload path" }, { status: 400 });
+  }
+
+  if (!request.body) {
+    return NextResponse.json({ error: "No body" }, { status: 400 });
+  }
 
   try {
-    const jsonResponse = await handleUpload({
-      body,
-      request,
-      onBeforeGenerateToken: async (pathname) => {
-        if (!isValidBlobPath(pathname)) {
-          throw new Error("Invalid upload path");
-        }
-        return {
-          allowedContentTypes: ["audio/mpeg"],
-          addRandomSuffix: false,
-        };
-      },
-      onUploadCompleted: async ({ blob }) => {
-        console.log("Blob uploaded:", blob.url);
-      },
+    const buffer = await request.arrayBuffer();
+    const blob = await put(pathname, buffer, {
+      access: "public",
+      addRandomSuffix: false,
+      contentType: "audio/mpeg",
     });
-
-    return NextResponse.json(jsonResponse);
+    return NextResponse.json({ url: blob.url });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Upload failed" },
