@@ -15,6 +15,50 @@ interface UploadModalProps {
   onClose: () => void;
 }
 
+/**
+ * POST the file to our own /api/upload route (same-origin, no CORS),
+ * which uploads it server-side to Vercel Blob. XHR gives us real progress.
+ */
+async function uploadFileToBlobViaXhr(
+  file: File,
+  pathname: string,
+  onProgress: (pct: number) => void
+): Promise<void> {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("pathname", pathname);
+
+  await new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+
+    xhr.upload.addEventListener("progress", (e) => {
+      if (e.lengthComputable) {
+        onProgress(Math.min(99, Math.round((e.loaded / e.total) * 99)));
+      }
+    });
+
+    xhr.addEventListener("load", () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve();
+      } else {
+        let msg = `Upload failed (${xhr.status})`;
+        try {
+          const body = JSON.parse(xhr.responseText);
+          if (body.error) msg = body.error;
+        } catch { /* ignore */ }
+        reject(new Error(msg));
+      }
+    });
+
+    xhr.addEventListener("error", () =>
+      reject(new Error("Network error — check your connection and try again"))
+    );
+
+    xhr.open("POST", "/api/upload");
+    xhr.send(formData);
+  });
+}
+
 export default function UploadModal({ onClose }: UploadModalProps) {
   const [name, setName] = useState("");
   const [files, setFiles] = useState<File[]>([]);
@@ -46,40 +90,6 @@ export default function UploadModal({ onClose }: UploadModalProps) {
     addFiles(e.dataTransfer.files);
   };
 
-  const uploadFile = (file: File, pathname: string): Promise<void> =>
-    new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-
-      xhr.upload.addEventListener("progress", (e) => {
-        if (e.lengthComputable) {
-          // Cap at 95 until server confirms blob is stored
-          const pct = Math.min(95, Math.round((e.loaded / e.total) * 95));
-          setFileProgress((prev) => ({ ...prev, [file.name]: pct }));
-        }
-      });
-
-      xhr.addEventListener("load", () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          setFileProgress((prev) => ({ ...prev, [file.name]: 100 }));
-          resolve();
-        } else {
-          try {
-            const msg = JSON.parse(xhr.responseText)?.error ?? "Upload failed";
-            reject(new Error(msg));
-          } catch {
-            reject(new Error(`Upload failed (${xhr.status})`));
-          }
-        }
-      });
-
-      xhr.addEventListener("error", () => reject(new Error("Network error")));
-      xhr.addEventListener("abort", () => reject(new Error("Upload cancelled")));
-
-      xhr.open("PUT", `/api/upload?pathname=${encodeURIComponent(pathname)}`);
-      xhr.setRequestHeader("Content-Type", "audio/mpeg");
-      xhr.send(file);
-    });
-
   const onSubmit = async () => {
     setError(null);
     if (!name.trim()) { setError("Enter a name first."); return; }
@@ -94,7 +104,13 @@ export default function UploadModal({ onClose }: UploadModalProps) {
     try {
       for (const file of files) {
         const safeName = file.name.replace(/[^a-zA-Z0-9._\- ]/g, "_");
-        await uploadFile(file, `songs/${slug}/${safeName}`);
+        const pathname = `songs/${slug}/${safeName}`;
+
+        await uploadFileToBlobViaXhr(file, pathname, (pct) => {
+          setFileProgress((prev) => ({ ...prev, [file.name]: pct }));
+        });
+
+        setFileProgress((prev) => ({ ...prev, [file.name]: 100 }));
       }
       setResult({ slug, url: `${window.location.origin}/${slug}` });
     } catch (err) {
@@ -127,14 +143,10 @@ export default function UploadModal({ onClose }: UploadModalProps) {
               </svg>
             </div>
             <h2 className="text-lg font-semibold mb-1">Page created</h2>
-            <p className="text-sm text-neutral-400 mb-6">
-              Share this link with your artist
-            </p>
+            <p className="text-sm text-neutral-400 mb-6">Share this link with your artist</p>
 
             <div className="flex items-center gap-2 bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-3 mb-6">
-              <span className="flex-1 text-sm text-neutral-300 truncate text-left">
-                {result.url}
-              </span>
+              <span className="flex-1 text-sm text-neutral-300 truncate text-left">{result.url}</span>
               <button
                 onClick={copyLink}
                 className="flex-shrink-0 text-xs font-medium text-[#826921] hover:text-[#9a7d28] transition-colors"
@@ -163,10 +175,7 @@ export default function UploadModal({ onClose }: UploadModalProps) {
           <>
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-base font-semibold">New beat page</h2>
-              <button
-                onClick={onClose}
-                className="text-neutral-500 hover:text-white transition-colors"
-              >
+              <button onClick={onClose} className="text-neutral-500 hover:text-white transition-colors">
                 <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -187,10 +196,7 @@ export default function UploadModal({ onClose }: UploadModalProps) {
               />
               {name.trim() && (
                 <p className="mt-1.5 text-xs text-neutral-600">
-                  Page will be at{" "}
-                  <span className="text-neutral-400">
-                    /{slugify(name.trim())}
-                  </span>
+                  Page will be at <span className="text-neutral-400">/{slugify(name.trim())}</span>
                 </p>
               )}
             </div>
@@ -202,9 +208,7 @@ export default function UploadModal({ onClose }: UploadModalProps) {
               onDrop={onDrop}
               onClick={() => fileInputRef.current?.click()}
               className={`relative border-2 border-dashed rounded-xl px-6 py-8 text-center cursor-pointer transition-all mb-4 ${
-                dragging
-                  ? "border-[#826921] bg-[#826921]/5"
-                  : "border-neutral-800 hover:border-neutral-700"
+                dragging ? "border-[#826921] bg-[#826921]/5" : "border-neutral-800 hover:border-neutral-700"
               }`}
             >
               <input
@@ -230,30 +234,19 @@ export default function UploadModal({ onClose }: UploadModalProps) {
                   const pct = fileProgress[f.name] ?? 0;
                   const done = uploading && pct >= 100;
                   return (
-                    <li
-                      key={f.name}
-                      className="flex flex-col bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs overflow-hidden"
-                    >
+                    <li key={f.name} className="flex flex-col bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs overflow-hidden">
                       <div className="flex items-center gap-2">
                         <span className="text-neutral-300 truncate flex-1 min-w-0">{f.name}</span>
                         {uploading ? (
                           done ? (
-                            /* Checkmark */
                             <svg className="w-3.5 h-3.5 text-[#826921] flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                             </svg>
                           ) : (
-                            /* Percentage */
-                            <span className="text-neutral-500 tabular-nums flex-shrink-0 min-w-[2rem] text-right">
-                              {pct}%
-                            </span>
+                            <span className="text-neutral-500 tabular-nums flex-shrink-0 min-w-[2rem] text-right">{pct}%</span>
                           )
                         ) : (
-                          /* Remove button */
-                          <button
-                            onClick={() => removeFile(f.name)}
-                            className="text-neutral-600 hover:text-red-400 transition-colors flex-shrink-0"
-                          >
+                          <button onClick={() => removeFile(f.name)} className="text-neutral-600 hover:text-red-400 transition-colors flex-shrink-0">
                             <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                             </svg>
@@ -276,9 +269,7 @@ export default function UploadModal({ onClose }: UploadModalProps) {
               </ul>
             )}
 
-            {error && (
-              <p className="text-xs text-red-400 mb-4">{error}</p>
-            )}
+            {error && <p className="text-xs text-red-400 mb-4">{error}</p>}
 
             <button
               onClick={onSubmit}
